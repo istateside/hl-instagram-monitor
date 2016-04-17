@@ -7,6 +7,7 @@ Tested up to: 4.0
 Stable tag: 1.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Version: 1.0
 
 This is where you craft a short, punchy description of your plugin
 
