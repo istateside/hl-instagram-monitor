@@ -272,20 +272,18 @@ class Social_Monitor {
 		update_option( $this->_token . '_version', $this->_version );
 	} // End _log_version_number ()
   
-  function get_post_last_service_id( $service_type ){
-    
-    if( $service_type == 'instagram' ){
+  function get_post_next_url() {
+    $last_id = get_posts( array( 'post_type' => 'sm_social_post', 'orderby' => 'meta_value', 'metakey'=> 'created', 'order' => 'DESC', 'posts_per_page' => 1 ) );
+    if ($last_id) {
       
-      $last_id = get_posts( array( 'post_type' => 'sm_social_post', 'meta_value' => $service_type, 'meta_key' => 'service', 'orderby' => 'ID', 'order' => 'ASC', 'posts_per_page' => 1 ) );
-      
-      $last_post_data_id = get_post_meta( $last_id[0]->ID, 'service_id', true );
-      
+      $next_url = get_post_meta( $last_id[0]->ID, 'next_url', true );
+      return $next_url;
     }
   }
   
-  function get_instagram_posts() {
+  function get_instagram_posts($new_posts = true) {
     
-    $access_token = get_option('sp_instagram_token');
+    $access_token = get_option('wpt_instagram_token');
     
     if( !$access_token ){
       
@@ -293,21 +291,34 @@ class Social_Monitor {
       
     }
     
-    $request = new CURL_Request('https://api.instagram.com/v1/tags/northofnyc/media/recent', array(
+    $args = array();
+    $args['count'] = 50;
+    $args['access_token'] = $access_token;
+    $next_url = $this->get_post_next_url();
+    
+    //FIXME: Instagram's API apparently changed this week and the documentation has not.
+    // Great.
+    if ($new_posts == true || $next_url == NULL) {
+      $url = 'https://api.instagram.com/v1/tags/northofnyc/media/recent';
+    } else {
+      $url = $next_url;
+    }
+    
+    $request = new CURL_Request($url, array(
       'User-Agent' => 'King & Partners - Social Monitor'
     ));
     
-    $last_post_id = $this->get_post_last_service_id('instagram');
-    
-    $request->set_query_parameters(array(
-      'access_token' => $access_token,
-      'min_id' => $last_post_id,
-      'count' => 10
-    ));
-    
+    $request->set_query_parameters($args);
+
     $response = $request->GET();
+    $return = array();
     
-    return $response->data;
+    if (isset($response->data)) {
+      $return['posts'] = $response->data;
+      $return['next_url'] = $response->pagination->next_url;      
+    }
+
+    return $return;
     
   }
 
@@ -382,9 +393,98 @@ class CURL_Request {
 			$query_string = http_build_query($this->query_parameters);
 			$url = $this->url . '?' . $query_string;
 		}
-			
+    
 		return $url;
 		
 	}
 
+}
+
+class Social_Post {
+	function __construct($title, $text, $author = null, $service, $photo_url, $video_url, $service_id = null, $original_url = null, $created = null) {
+		$this->author = $author;
+		$this->title = $title;
+		$this->text = $text;
+		$this->service = $service;
+		$this->photo_url = $photo_url;
+		$this->video_url = $video_url;
+		$this->service_id = $service_id;
+		$this->original_url = $original_url;
+		$this->created = $created;
+	}
+	function add_attachments($attachments){
+		
+		$this->add_meta('attachments', $attachments);
+		
+	}
+	function save() {
+		
+		$auto_publish = get_option('sp_auto_publish');
+		$categories = get_option('sp_auto_categorize');
+		
+		$this->id = wp_insert_post(array(
+			'post_title' => mb_strimwidth( $this->text, 0, 54, '...'),
+			'post_type' => 'sm_social_post',
+			'post_status' => 'pending',
+			'post_date' => date( 'Y-m-d H:i:s', $this->created )
+		), true);
+		
+		/* pause for fraction of a second */
+		usleep(62500);
+		
+		
+		wp_set_post_terms( $this->id, $categories, 'category', true );
+		
+		$this->add_meta('text', $this->remove_emoji( $this->text ) );
+		$this->add_meta('author', $this->author);
+		$this->add_meta('service', $this->service);
+		$this->add_meta('photo_url', $this->photo_url);
+		$this->add_meta('video_url', $this->video_url);
+		$this->add_meta('service_id', $this->service_id);
+		$this->add_meta('original_url', $this->original_url);
+		$this->add_meta('created', $this->created);
+		$this->add_meta('published', ( $auto_publish ) ? 1 : 0 );
+    $this->add_meta('next_url', $this->next_url);
+
+		return $this->id;
+		
+	}
+	function add_meta($key, $value, $unique = false) {
+		add_post_meta($this->id, $key, $value, $unique);
+	}
+	function remove_emoji( $text ){
+
+		$clean_text = '';
+		
+		// Match Emoticons
+		$regexEmoticons = '/[\x{1F600}-\x{1F64F}]/u';
+		$clean_text = preg_replace($regexEmoticons, '', $text);
+		
+		// Match Miscellaneous Symbols and Pictographs
+		$regexSymbols = '/[\x{1F300}-\x{1F5FF}]/u';
+		$clean_text = preg_replace($regexSymbols, '', $clean_text);
+		
+		// Match Transport And Map Symbols
+		$regexTransport = '/[\x{1F680}-\x{1F6FF}]/u';
+		$clean_text = preg_replace($regexTransport, '', $clean_text);
+		
+		// Match Miscellaneous Symbols
+		$regexMisc = '/[\x{2600}-\x{26FF}]/u';
+		$clean_text = preg_replace($regexMisc, '', $clean_text);
+		
+		// Match Dingbats
+		$regexDingbats = '/[\x{2700}-\x{27BF}]/u';
+		$clean_text = preg_replace($regexDingbats, '', $clean_text);
+		
+		return $clean_text;
+		
+	}
+}
+
+class Instagram_Post extends Social_Post {
+	const SERVICE = 'instagram';
+  function __construct($id, $text, $author, $photo_url, $video_url, $original_url, $created, $next_url) {
+    $this->next_url = $next_url;
+		parent::__construct('Instagram '.$id, $text, $author, self::SERVICE, $photo_url, $video_url, $id, $original_url, $created);
+	}
 }

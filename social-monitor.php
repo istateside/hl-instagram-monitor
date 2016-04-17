@@ -44,10 +44,11 @@ function Social_Monitor () {
       'name' => 'Social Posts',
       'singular_name' => "Social Post"
     ),
-    'taxonomies' => array( 'category', 'sm_social_tag' )
+    'taxonomies' => array( 'category', 'sm_social_tag' ),
+    'supports' => array('title')
   );
   
-	$instance->register_post_type('sm_social_post', "Social Importers", "Social Importer", 'Imports posts from various social networks based on various rules set in the Social Monitor plugin settings.', $args );
+	$instance->register_post_type('sm_social_post', "Social Posts", "Social Post", 'Imported posts from social networks', $args );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Social_Monitor_Settings::instance( $instance );
@@ -55,7 +56,6 @@ function Social_Monitor () {
 
 	return $instance;
 }
-
 
 add_filter( 'manage_social_post_posts_columns', 'add_social_post_header_columns' ) ;
 
@@ -130,30 +130,125 @@ function social_media_plugin_register() {
 
 add_action( 'update_social_posts', 'sm_update_social_monitor' );
 
-if( $_GET['action'] == 'update_social_monitor' ){
-	
+add_action('add_meta_boxes', 'add_instagram_meta_box');
+
+function add_instagram_meta_box() {
+  add_meta_box("sm_instagram_details", "Instagram Details", "sm_instagram_details_markup", "sm_social_post", "normal");
+}
+
+function sm_instagram_details_markup($post) {
+  ?>
+  <div>
+    <div class="input-group">
+      <h4>Created</h4>
+      <p><?php echo get_post_meta($post->ID, 'created', true) ?></p>
+    </div>
+    <div class="input-group">
+      <h4>Text</h4>
+      <p><?php echo get_post_meta($post->ID, 'text', true) ?></p>
+    </div>
+    <div class="input-group">
+      <h4>Author</h4>
+      <p><?php echo get_post_meta($post->ID, 'author', true) ?></p>
+    </div>
+    <div class="input-group">
+      <h4>Photo URL</h4>
+      <?php $url = get_post_meta($post->ID, 'photo_url', true);
+        if ($url) {
+          echo "<p>" . $url . "</p>" . "<img src='" . $url . "' />";
+        } else {
+          echo "<p>N/A</p>";
+        }
+      ?>
+    </div>
+    <div class="input-group">
+      <h4>Original URL</h4>
+      <p><?php echo get_post_meta($post->ID, 'original_url', true) ?></p>
+    </div>
+  </div>
+  <?php
+}
+add_action('admin_menu', 'create_social_posts_submenu_links');
+
+function create_social_posts_submenu_links() {
+  add_submenu_page('edit.php?post_type=sm_social_post', 'Import Social Posts', 'Import', 'edit_posts', 'sm_import_posts_menu', 'sm_import_menu_page');
+}
+
+function sm_import_menu_page() {
+  echo "<div class='wrap'>";
+    echo "<div class='buttons-wrapper'>";
+      echo "<a href='/wp/wp-admin/edit.php?post_type=sm_social_post&page=sm_import_posts_menu&action=update_social_monitor&age=newer'>Import Newer Posts</a>";
+      echo "<a href='/wp/wp-admin/edit.php?post_type=sm_social_post&page=sm_import_posts_menu&action=update_social_monitor&age=older'>Import Older Posts</a>";
+    echo "</div>";
+  echo "</div>";
+  
+  render_recent_posts();
+}
+
+if( isset( $_GET['action'] ) && $_GET['action'] == 'update_social_monitor' ){
 	add_action( 'init', 'sm_update_social_monitor' );
-	
 }
 
 function sm_update_social_monitor(){
 	sm_update_instagram_monitor();
 }
 
-function sm_update_instagram_monitor() {
-	foreach ($social_monitor->get_instagram_posts() as $social_post) {
-				
-		$instagram_post = new Instagram_Post($social_post->id, $social_post->caption->text, $social_post->user->username, $social_post->images->standard_resolution->url, $social_post->videos->standard_resolution->url, $social_post->link, $social_post->created_time);
-		
-		$results = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => 1, 'meta_key' => 'service_id', 'meta_value' => $social_post->id ) );
-		
-		if( count( $results ) > 0 ){
+function sm_update_instagram_monitor($new_posts = true) {
+  // For importing NEWER posts, pull with min_tag_id = to the min_tag_id of the most recent post.
+  // For OLDER posts, pull with the endpoint to the oldest posts next_url
+  
+  if (array_key_exists('age', $_GET)) {
+    $new_posts = ($_GET['age'] == 'newer');
+  }
+  
+  $social_monitor = new Social_Monitor();
+  $posts_and_tag_id = $social_monitor->get_instagram_posts($new_posts);
+  
+  $posts = $posts_and_tag_id['posts'];
+  $next_url = $posts_and_tag_id['next_url'];
+
+  global $new_post_count;
+  $new_post_count = 0;
+
+	foreach ($posts as $social_post) {
+    if (isset($social_post->videos) && isset($social_post->videos->standard_resolution)) {
+      $videoUrl = $posts->videos->standard_resolution->url;
+    } else {
+      $videoUrl = NULL;
+    }
+    
+		$instagram_post = new Instagram_Post($social_post->id, $social_post->caption->text, $social_post->user->username, $social_post->images->standard_resolution->url, $videoUrl, $social_post->link, $social_post->created_time, $next_url);
+		$results = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => 1, 'meta_key' => 'service_id', 'meta_value' => $social_post->id, 'post_status' => array('draft', 'publish', 'future') ) );
+    
+    if( count( $results ) > 0 ){
 			break;
 		}
 		
 		$new_post_id = $instagram_post->save();
-		
-	}  
+		$new_post_count++;
+    $GLOBALS['new_post_count'] = $new_post_count;
+	}
+}
+
+
+function render_recent_posts() {
+  
+  if (array_key_exists('new_post_count', $GLOBALS) && $GLOBALS['new_post_count'] > 0 ) {
+    $new_post_count = $GLOBALS['new_post_count'];
+    echo $new_post_count . " new posts imported.";
+    $new_posts = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => $new_post_count ) );  
+    
+    foreach($new_posts as $new_post):
+      $author = get_post_meta($new_post->ID, 'author', true);
+      $text = get_post_meta($new_post->ID, 'text', true);
+      $photo_url = get_post_meta($new_post->ID, 'photo_url', true);
+      
+      echo "<figure class='new-post'>";
+      echo "<img src='" . $photo_url . "' width='200' class='new-post-img'";
+      echo "<figcaption><p>'" . $text . "' - " . $author . "</p></figcaption>";
+      echo "</figure>";
+    endforeach;
+  }
 }
 
 Social_Monitor();
