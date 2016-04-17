@@ -293,7 +293,7 @@ class Social_Monitor {
       
     }
     
-    $request = new CURL_Request('https://api.instagram.com/v1/users/208437972/media/recent/', array(
+    $request = new CURL_Request('https://api.instagram.com/v1/tags/northofnyc/media/recent', array(
       'User-Agent' => 'King & Partners - Social Monitor'
     ));
     
@@ -310,5 +310,81 @@ class Social_Monitor {
     return $response->data;
     
   }
+
+}
+
+class CURL_Request {
+
+	function __construct($url, $headers = array()) {
+		$this->request = curl_init();
+		$this->set_url($url);
+		$this->set_option(CURLOPT_RETURNTRANSFER, true);
+
+		if (count($headers))
+			$this->set_headers($headers);
+	}
+
+	function __destruct() {
+		curl_close($this->request);
+	}
+
+	function set_url($url) {
+		$this->url = $url;
+	}
+
+	function set_headers($headers) {
+		$this->headers = $headers;
+
+		$header_pairs = array();
+		foreach ($this->headers as $key => $val) {
+			$header_pairs[] = $key.': '.$val;
+		}
+
+		$this->set_option(CURLOPT_HTTPHEADER, $header_pairs);
+	}
+
+	function set_query_parameters($query_parameters) {
+		$this->query_parameters = $query_parameters;
+	}
+
+	function set_post_data($post_data) {
+		$this->post_data = $post_data;
+		$this->set_option(CURLOPT_POSTFIELDS, http_build_query($this->post_data));
+	}
+
+	function GET() {
+		$this->response = $this->execute();
+		return json_decode($this->response);
+	}
+
+	function POST() {
+		$this->set_option(CURLOPT_POST, true);
+		$this->response = $this->execute();
+		return json_decode($this->response);
+	}
+
+	function execute() {
+		$this->set_option(CURLOPT_URL, $this->make_request_url());
+		
+		$this->make_request_url();
+		return curl_exec($this->request);
+	}
+
+	protected function set_option($key, $val) {
+		curl_setopt($this->request, $key, $val);
+	}
+
+	protected function make_request_url() {
+		
+		$url = $this->url;
+		
+		if ($this->query_parameters && count($this->query_parameters)) {
+			$query_string = http_build_query($this->query_parameters);
+			$url = $this->url . '?' . $query_string;
+		}
+			
+		return $url;
+		
+	}
 
 }

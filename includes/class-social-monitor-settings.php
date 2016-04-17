@@ -154,38 +154,7 @@ class Social_Monitor_Settings {
 				),
       )
     );
-
-		$settings['extra'] = array(
-			'title'					=> __( 'Extra', 'social-monitor' ),
-			'description'			=> __( 'These are some extra input fields that maybe aren\'t as common as the others.', 'social-monitor' ),
-			'fields'				=> array(
-				array(
-					'id' 			=> 'number_field',
-					'label'			=> __( 'A Number' , 'social-monitor' ),
-					'description'	=> __( 'This is a standard number field - if this field contains anything other than numbers then the form will not be submitted.', 'social-monitor' ),
-					'type'			=> 'number',
-					'default'		=> '',
-					'placeholder'	=> __( '42', 'social-monitor' )
-				),
-				array(
-					'id' 			=> 'an_image',
-					'label'			=> __( 'An Image' , 'social-monitor' ),
-					'description'	=> __( 'This will upload an image to your media library and store the attachment ID in the option field. Once you have uploaded an imge the thumbnail will display above these buttons.', 'social-monitor' ),
-					'type'			=> 'image',
-					'default'		=> '',
-					'placeholder'	=> ''
-				),
-				array(
-					'id' 			=> 'multi_select_box',
-					'label'			=> __( 'A Multi-Select Box', 'social-monitor' ),
-					'description'	=> __( 'A standard multi-select box - the saved data is stored as an array.', 'social-monitor' ),
-					'type'			=> 'select_multi',
-					'options'		=> array( 'linux' => 'Linux', 'mac' => 'Mac', 'windows' => 'Windows' ),
-					'default'		=> array( 'linux' )
-				)
-			)
-		);
-
+    
 		$settings = apply_filters( $this->parent->_token . '_settings_fields', $settings );
 
 		return $settings;
