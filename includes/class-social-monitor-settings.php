@@ -39,7 +39,7 @@ class Social_Monitor_Settings {
 	public function __construct ( $parent ) {
 		$this->parent = $parent;
 
-		$this->base = 'wpt_';
+		$this->base = 'sm_';
 
 		// Initialise settings
 		add_action( 'init', array( $this, 'init_settings' ), 11 );
@@ -113,12 +113,12 @@ class Social_Monitor_Settings {
 
 
 		$settings['standard'] = array(
-			'title'					=> __( 'Standard', 'social-monitor' ),
-			'description'			=> __( 'These are fairly standard form input fields.', 'social-monitor' ),
+			'title'					=> __( 'Base', 'social-monitor' ),
+			'description'			=> __( '', 'social-monitor' ),
 			'fields'				=> array(
 				array(
-					'id' 			=> 'auto_publish',		
-					'label'			=> __( 'Auto Publish', 'social-monitor' ),		
+					'id' 			=> 'auto_publish',
+          'label'			=> __( 'Auto Publish', 'social-monitor' ),		
 					'description'	=> __( 'Enabling auto publish will automatically set newly imported posts to "published." Not recommended if importing posts from sources outside of your control.', 'social-monitor' ),		
 					'type'			=> 'checkbox',		
 					'default'		=> ''		
@@ -139,11 +139,27 @@ class Social_Monitor_Settings {
         array(
 					'id' 			=> 'instagram_token',
 					'label'			=> __( 'Instagram Access Token' , 'social-monitor' ),
-					'description'	=> __( '', 'social-monitor' ),
+					'description'	=> __( 'Don\'t change this if you don\'t know what it is! Get a new one here: http://instagram.pixelunion.net/', 'social-monitor' ),
 					'type'			=> 'text',
 					'default'		=> '',
 					'placeholder'	=> __( '', 'social-monitor' )
 				),
+        array(
+					'id' 			=> 'instagram_batch_size',
+					'label'			=> __( 'Import Batch Size' , 'social-monitor' ),
+					'description'	=> __( 'How many posts should each import attempt to bring in from Instagram\'s servers?', 'social-monitor' ),
+					'type'			=> 'number',
+					'default'		=> '40',
+					'placeholder'	=> __( '', 'social-monitor' )
+				),
+        array(
+					'id' 			=> 'instagram_hashtag',
+					'label'			=> __( 'Targeted Tag' , 'social-monitor' ),
+					'description'	=> __( 'Which tag do you want to target to pull posts from Instagram?', 'social-monitor' ),
+					'type'			=> 'text',
+					'default'		=> 'northofnyc',
+					'placeholder'	=> __( '', 'social-monitor' )
+        )
       )
     );
     

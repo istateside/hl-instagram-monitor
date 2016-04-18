@@ -273,17 +273,26 @@ class Social_Monitor {
 	} // End _log_version_number ()
   
   function get_post_next_url() {
-    $last_id = get_posts( array( 'post_type' => 'sm_social_post', 'orderby' => 'meta_value', 'metakey'=> 'created', 'order' => 'DESC', 'posts_per_page' => 1 ) );
+    $last_id = get_posts( array( 
+      'post_type' => 'sm_social_post',
+      'orderby' => 'meta_value',
+      'metakey'=> 'created',
+      'order' => 'ASC',
+      'posts_per_page' => 1,
+      'post_status' => array('draft', 'publish', 'future', 'pending')
+   ) );
     if ($last_id) {
-      
       $next_url = get_post_meta( $last_id[0]->ID, 'next_url', true );
+      echo "LAST ID? " . $last_id[0]->ID;
+      echo $next_url;
+
       return $next_url;
     }
   }
   
   function get_instagram_posts($new_posts = true) {
     
-    $access_token = get_option('wpt_instagram_token');
+    $access_token = get_option('sm_instagram_token');
     
     if( !$access_token ){
       
@@ -292,14 +301,15 @@ class Social_Monitor {
     }
     
     $args = array();
-    $args['count'] = 50;
-    $args['access_token'] = $access_token;
     $next_url = $this->get_post_next_url();
     
-    //FIXME: Instagram's API apparently changed this week and the documentation has not.
-    // Great.
     if ($new_posts == true || $next_url == NULL) {
-      $url = 'https://api.instagram.com/v1/tags/northofnyc/media/recent';
+      $hashtag = get_option('sm_instagram_hashtag');
+      $hashtag = ($hashtag ? $hashtag : 'northofnyc');
+      $count = get_option('sm_instagram_batch_size');
+      $args['count'] = ($count ? $count : 40);
+      $args['access_token'] = $access_token;
+      $url = 'https://api.instagram.com/v1/tags/' . $hashtag . '/media/recent';
     } else {
       $url = $next_url;
     }
@@ -307,7 +317,6 @@ class Social_Monitor {
     $request = new CURL_Request($url, array(
       'User-Agent' => 'King & Partners - Social Monitor'
     ));
-    
     $request->set_query_parameters($args);
 
     $response = $request->GET();
@@ -402,7 +411,7 @@ class CURL_Request {
 
 class Social_Post {
 	function __construct($title, $text, $author = null, $service, $photo_url, $video_url, $service_id = null, $original_url = null, $created = null) {
-		$this->author = $author;
+		$this->original_author = $author;
 		$this->title = $title;
 		$this->text = $text;
 		$this->service = $service;
@@ -422,8 +431,13 @@ class Social_Post {
 		$auto_publish = get_option('sp_auto_publish');
 		$categories = get_option('sp_auto_categorize');
 		
+    $text = $this->text;
+    if (strlen($text) > 54) {
+      $text = substr($text, 0, 54) . '...';
+    }
+    
 		$this->id = wp_insert_post(array(
-			'post_title' => mb_strimwidth( $this->text, 0, 54, '...'),
+			'post_title' => $text,
 			'post_type' => 'sm_social_post',
 			'post_status' => 'pending',
 			'post_date' => date( 'Y-m-d H:i:s', $this->created )
@@ -436,7 +450,7 @@ class Social_Post {
 		wp_set_post_terms( $this->id, $categories, 'category', true );
 		
 		$this->add_meta('text', $this->remove_emoji( $this->text ) );
-		$this->add_meta('author', $this->author);
+		$this->add_meta('original_author', $this->original_author);
 		$this->add_meta('service', $this->service);
 		$this->add_meta('photo_url', $this->photo_url);
 		$this->add_meta('video_url', $this->video_url);

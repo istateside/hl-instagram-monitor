@@ -18,11 +18,11 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once(ABSPATH . 'wp-admin/includes/screen.php');
 
 // Load plugin class files
 require_once( 'includes/class-social-monitor.php' );
 require_once( 'includes/class-social-monitor-settings.php' );
-
 // Load plugin libraries
 require_once( 'includes/lib/class-social-monitor-admin-api.php' );
 require_once( 'includes/lib/class-social-monitor-post-type.php' );
@@ -63,25 +63,30 @@ function wpa_order_social_posts( $query ){
   if( !is_admin() )
     return;
 
+  $orderby = $query->get( 'orderby');
   $screen = get_current_screen();
-  if( 'edit' == $screen->base
-  && 'sm_social_post' == $screen->post_type
-  && !isset( $_GET['orderby'] ) ){
-    $query->set( 'orderby', 'meta_value_num' );
-    $query->set( 'meta_key', 'created' );
-    $query->set( 'order', 'ASC' );
+  
+  if ($screen) {
+    if( 'edit' == $screen->base
+    && 'sm_social_post' == $screen->post_type
+    && !isset( $_GET['orderby'] ) ){
+      $query->set( 'orderby', 'meta_value' );
+      $query->set( 'meta_key', 'created' );
+      $query->set( 'order', 'DESC' );
+    }
   }
 }
 
-add_filter( 'manage_social_post_posts_columns', 'add_social_post_header_columns' ) ;
+add_filter( 'manage_sm_social_post_posts_columns', 'add_social_post_header_columns' ) ;
 
 function add_social_post_header_columns( $columns ) {
 
 	$columns = array(
 		'cb' => '<input type="checkbox" />',
 		'title' => __( 'Social Post' ),
-		'type' => __( 'Service' ),
-		'visible' => __( 'Visible' ),
+		'original_author' => __( 'Original Author' ),
+    'original_url' => __( 'Original URL' ),
+		'created' => __( 'Original Post Date' ),
 		'date' => __( 'Date' )
 	);
 
@@ -89,7 +94,7 @@ function add_social_post_header_columns( $columns ) {
 
 }
 
-add_action( 'manage_social_post_posts_custom_column', 'add_social_post_columns', 10, 2 );
+add_action( 'manage_sm_social_post_posts_custom_column', 'add_social_post_columns', 10, 2 );
 
 function add_social_post_columns( $column, $post_id ) {
 
@@ -97,22 +102,44 @@ function add_social_post_columns( $column, $post_id ) {
 
 	switch( $column ) {
 
-		case 'type':
+    case 'author':
+      echo "@" . get_post_meta( $post_id, 'original_author', true );
+      break;
+      
+    case 'original_url':
+      $url = get_post_meta( $post_id, 'original_url', true );
+      echo "<a href='" . $url . "'>" . $url . "</a>";
+      break;
 		
-		echo ucfirst( get_post_meta( $post_id, 'service', true ) );
+    case 'created':
+		  $created = get_post_meta( $post_id, 'created', true );
+  		echo ($created ? date("F j, Y - H:i", $created) : "Unknown");
 
-		break;
-		
-		case 'visible':
-		
-		echo ( get_post_meta( $post_id, 'published', true ) ) ? 'Visible' : '';
-
-		break;
+  		break;
 
 	}
 
 }
 
+add_filter( 'manage_edit-sm_social_post_sortable_columns', 'sm_social_post_sortable' );
+
+function sm_social_post_sortable($columns) {
+  $columns['created'] = 'created';
+  return $columns;
+}
+
+add_action( 'pre_get_posts', 'sm_social_post_orderby' );
+function sm_social_post_orderby( $query ) {
+    if( ! is_admin() )
+        return;
+ 
+    $orderby = $query->get( 'orderby');
+ 
+    if( 'created' == $orderby ) {
+        $query->set('meta_key','created');
+        $query->set('orderby','meta_value_num');
+    }
+}
 
 add_filter( 'cron_schedules', 'add_custom_cron_intervals', 10, 1 );
 
@@ -157,7 +184,9 @@ function sm_instagram_details_markup($post) {
   <div>
     <div class="input-group">
       <h4>Created</h4>
-      <p><?php echo get_post_meta($post->ID, 'created', true) ?></p>
+      <?php $created = get_post_meta($post->ID, 'created', true); ?>
+      <?php $dateStr = $created ? date("F j, Y - H:i", $created) : "Unknown"; ?>
+      <p><?php echo $dateStr ?></p>
     </div>
     <div class="input-group">
       <h4>Text</h4>
@@ -165,7 +194,7 @@ function sm_instagram_details_markup($post) {
     </div>
     <div class="input-group">
       <h4>Author</h4>
-      <p><?php echo get_post_meta($post->ID, 'author', true) ?></p>
+      <p><?php echo get_post_meta($post->ID, 'original_author', true) ?></p>
     </div>
     <div class="input-group">
       <h4>Photo URL</h4>
@@ -197,8 +226,13 @@ function sm_import_menu_page() {
       echo "<a href='/wp/wp-admin/edit.php?post_type=sm_social_post&page=sm_import_posts_menu&action=update_social_monitor&age=older'>Import Older Posts</a>";
     echo "</div>";
   echo "</div>";
-  
-  render_recent_posts();
+  if (array_key_exists('age', $_GET)) {
+    $new_posts = ($_GET['age'] == 'newer');
+  } else {
+    $new_posts = true;
+  }
+
+  render_recent_posts($new_posts);
 }
 
 if( isset( $_GET['action'] ) && $_GET['action'] == 'update_social_monitor' ){
@@ -222,16 +256,12 @@ function sm_update_instagram_monitor($new_posts = true) {
   
   $posts = $posts_and_tag_id['posts'];
   $next_url = $posts_and_tag_id['next_url'];
-
+  
   global $new_post_count;
   $new_post_count = 0;
 
 	foreach ($posts as $social_post) {
-    if (isset($social_post->videos) && isset($social_post->videos->standard_resolution)) {
-      $videoUrl = $posts->videos->standard_resolution->url;
-    } else {
-      $videoUrl = NULL;
-    }
+    $videoUrl = NULL;
     
 		$instagram_post = new Instagram_Post($social_post->id, $social_post->caption->text, $social_post->user->username, $social_post->images->standard_resolution->url, $videoUrl, $social_post->link, $social_post->created_time, $next_url);
 		$results = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => 1, 'meta_key' => 'service_id', 'meta_value' => $social_post->id, 'post_status' => array('draft', 'publish', 'future', 'pending') ) );
@@ -247,23 +277,31 @@ function sm_update_instagram_monitor($new_posts = true) {
 }
 
 
-function render_recent_posts() {
+function render_recent_posts($new_posts = true) {
   
-  if (array_key_exists('new_post_count', $GLOBALS) && $GLOBALS['new_post_count'] > 0 ) {
+  if (array_key_exists('new_post_count', $GLOBALS) && $GLOBALS['new_post_count'] > 0) {
     $new_post_count = $GLOBALS['new_post_count'];
     echo $new_post_count . " new posts imported.";
-    $new_posts = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => $new_post_count ) );  
+    $new_posts = get_posts( array( 
+      'post_type' => 'sm_social_post',
+      'posts_per_page' => $new_post_count,
+      'orderby' => 'post_date',
+      'order' => ($new_posts ? 'DESC' : 'ASC'),
+      'post_status' => array('draft', 'publish', 'future', 'pending')
+    ));
     
     foreach($new_posts as $new_post):
-      $author = get_post_meta($new_post->ID, 'author', true);
+      $author = get_post_meta($new_post->ID, 'original_author', true);
       $text = get_post_meta($new_post->ID, 'text', true);
       $photo_url = get_post_meta($new_post->ID, 'photo_url', true);
       
       echo "<figure class='new-post'>";
-      echo "<img src='" . $photo_url . "' width='200' class='new-post-img'";
-      echo "<figcaption><p>'" . $text . "' - " . $author . "</p></figcaption>";
+        echo "<img src='" . $photo_url . "' width='200' class='new-post-img'";
+        echo "<figcaption><p>'" . $text . "' - " . $author . "</p></figcaption>";
       echo "</figure>";
     endforeach;
+  } else {
+    echo "No new posts imported.";
   }
 }
 
