@@ -57,7 +57,7 @@ function Social_Monitor () {
 	return $instance;
 }
 
-function wpa_order_states( $query ){
+function wpa_order_social_posts( $query ){
     if( !is_admin() )
         return;
 
@@ -70,7 +70,7 @@ function wpa_order_states( $query ){
         $query->set( 'order', 'ASC' );
     }
 }
-add_action( 'pre_get_posts', 'wpa_order_states' );
+add_action( 'pre_get_posts', 'wpa_order_social_posts' );
 
 add_filter( 'manage_social_post_posts_columns', 'add_social_post_header_columns' ) ;
 
