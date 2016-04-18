@@ -58,19 +58,18 @@ function Social_Monitor () {
 }
 
 function wpa_order_social_posts( $query ){
-    if( !is_admin() )
-        return;
+  if( !is_admin() )
+    return;
 
-    $screen = get_current_screen();
-    if( 'edit' == $screen->base
-    && 'sm_social_post' == $screen->post_type
-    && !isset( $_GET['orderby'] ) ){
-        $query->set( 'orderby', 'meta_value_num' );
-        $query->set( 'meta_key', 'created' );
-        $query->set( 'order', 'ASC' );
-    }
+  $screen = get_current_screen();
+  if( 'edit' == $screen->base
+  && 'sm_social_post' == $screen->post_type
+  && !isset( $_GET['orderby'] ) ){
+    $query->set( 'orderby', 'meta_value_num' );
+    $query->set( 'meta_key', 'created' );
+    $query->set( 'order', 'ASC' );
+  }
 }
-add_action( 'pre_get_posts', 'wpa_order_social_posts' );
 
 add_filter( 'manage_social_post_posts_columns', 'add_social_post_header_columns' ) ;
 
