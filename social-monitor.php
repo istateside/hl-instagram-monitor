@@ -218,7 +218,7 @@ function sm_update_instagram_monitor($new_posts = true) {
     }
     
 		$instagram_post = new Instagram_Post($social_post->id, $social_post->caption->text, $social_post->user->username, $social_post->images->standard_resolution->url, $videoUrl, $social_post->link, $social_post->created_time, $next_url);
-		$results = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => 1, 'meta_key' => 'service_id', 'meta_value' => $social_post->id, 'post_status' => array('draft', 'publish', 'future') ) );
+		$results = get_posts( array( 'post_type' => 'sm_social_post', 'posts_per_page' => 1, 'meta_key' => 'service_id', 'meta_value' => $social_post->id, 'post_status' => array('draft', 'publish', 'future', 'pending') ) );
     
     if( count( $results ) > 0 ){
 			break;
