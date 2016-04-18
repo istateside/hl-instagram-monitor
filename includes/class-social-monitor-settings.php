@@ -67,7 +67,7 @@ class Social_Monitor_Settings {
 	 * @return void
 	 */
 	public function add_menu_item () {
-		$page = add_options_page( __( 'Plugin Settings', 'social-monitor' ) , __( 'Plugin Settings', 'social-monitor' ) , 'manage_options' , $this->parent->_token . '_settings' ,  array( $this, 'settings_page' ) );
+		$page = add_options_page( __( 'Social Monitor', 'social-monitor' ) , __( 'Social Monitor', 'social-monitor' ) , 'manage_options' , $this->parent->_token . '_settings' ,  array( $this, 'settings_page' ) );
 		add_action( 'admin_print_styles-' . $page, array( $this, 'settings_assets' ) );
 	}
 
@@ -122,14 +122,6 @@ class Social_Monitor_Settings {
 					'description'	=> __( 'Enabling auto publish will automatically set newly imported posts to "published." Not recommended if importing posts from sources outside of your control.', 'social-monitor' ),		
 					'type'			=> 'checkbox',		
 					'default'		=> ''		
-				),
-				array(		
-					'id' 			=> 'auto_categorize',		
-					'label'			=> __( 'Default Tag(s)', 'social-monitor' ),		
-					'description'	=> __( 'All new social posts will be tagged with selected options, in addition to the tag for their corresponding source.', 'social-monitor' ),		
-					'type'			=> 'select_multi',		
-					'options'		=> $tags_list,
-					'default'		=> array( 'Social Post' )
 				)
 			)
 		);
@@ -218,7 +210,7 @@ class Social_Monitor_Settings {
 
 		// Build page HTML
 		$html = '<div class="wrap" id="' . $this->parent->_token . '_settings">' . "\n";
-			$html .= '<h2>' . __( 'Plugin Settings' , 'social-monitor' ) . '</h2>' . "\n";
+			$html .= '<h2>' . __( 'Social Monitor Settings' , 'social-monitor' ) . '</h2>' . "\n";
 
 			$tab = '';
 			if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
