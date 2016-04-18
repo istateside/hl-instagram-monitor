@@ -57,6 +57,8 @@ function Social_Monitor () {
 	return $instance;
 }
 
+add_action( 'pre_get_posts', 'wpa_order_social_posts' );
+
 function wpa_order_social_posts( $query ){
   if( !is_admin() )
     return;
