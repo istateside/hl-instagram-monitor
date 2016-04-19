@@ -280,7 +280,7 @@ class Social_Monitor {
       'order' => 'ASC',
       'posts_per_page' => 1,
       'post_status' => array('draft', 'publish', 'future', 'pending')
-   ) );
+    ) );
     if ($last_id) {
       $next_url = get_post_meta( $last_id[0]->ID, 'next_url', true );
       echo "LAST ID? " . $last_id[0]->ID;
