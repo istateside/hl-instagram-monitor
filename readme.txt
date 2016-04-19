@@ -4,10 +4,10 @@ Donate link: http://www.hughlashbrooke.com/donate
 Tags: wordpress, plugin, template
 Requires at least: 3.9
 Tested up to: 4.0
-Stable tag: 1.1
+Stable tag: 1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
-Version: 1.1
+Version: 1.2
 
 Imports Instagram posts as Custom Social posts in instagram.
 
