@@ -84,10 +84,11 @@ function add_social_post_header_columns( $columns ) {
 	$columns = array(
 		'cb' => '<input type="checkbox" />',
 		'title' => __( 'Social Post' ),
+    'thumbnail' => __( 'Thumbnail' ),
 		'original_author' => __( 'Original Author' ),
     'original_url' => __( 'Original URL' ),
-		'created' => __( 'Original Post Date' ),
-		'date' => __( 'Date' )
+    'created' => __( 'Original Post Date' ),
+    'date' => __( 'Date' )
 	);
 
 	return $columns;
@@ -101,9 +102,17 @@ function add_social_post_columns( $column, $post_id ) {
 	global $post;
 
 	switch( $column ) {
-
-    case 'author':
-      echo "@" . get_post_meta( $post_id, 'original_author', true );
+    
+    case 'thumbnail':
+      echo "<img src='" . get_post_meta( $post_id, 'photo_url', true) . "' width=120 />";
+      break;
+      
+		case 'created':
+  		echo date( 'F j, Y - h:ia', get_post_meta($post_id, 'created', true));
+  		break;
+      
+    case 'original_author':
+      echo get_post_meta( $post_id, 'original_author', true );
       break;
       
     case 'original_url':
@@ -113,10 +122,8 @@ function add_social_post_columns( $column, $post_id ) {
 		
     case 'created':
 		  $created = get_post_meta( $post_id, 'created', true );
-  		echo ($created ? date("F j, Y - H:i", $created) : "Unknown");
-
+  		echo ($created ? date("F j, Y - H:ia", $created) : "Unknown");
   		break;
-
 	}
 
 }
@@ -185,7 +192,7 @@ function sm_instagram_details_markup($post) {
     <div class="input-group">
       <h4>Created</h4>
       <?php $created = get_post_meta($post->ID, 'created', true); ?>
-      <?php $dateStr = $created ? date("F j, Y - H:i", $created) : "Unknown"; ?>
+      <?php $dateStr = $created ? date("F j, Y - H:ia", $created) : "Unknown"; ?>
       <p><?php echo $dateStr ?></p>
     </div>
     <div class="input-group">
